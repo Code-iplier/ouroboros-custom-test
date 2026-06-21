@@ -87,10 +87,7 @@ export const MOCK_CHATS: Chat[] = [
   },
 ];
 
-export function createMockChat(
-  title: string | null,
-  projectId?: string
-): Chat {
+export function createMockChat(title: string | null, projectId?: string): Chat {
   return {
     id: `chat-${Date.now()}`,
     title,
@@ -124,13 +121,11 @@ export const MOCK_MESSAGES: Record<string, Message[]> = {
         intent: "search_programs",
         orchestrator_thoughts: {
           intent: "discover_programs",
-          reasoning:
-            "User wants research programs. Querying Singapore institution database.",
+          reasoning: "User wants research programs. Querying Singapore institution database.",
         },
         routing_decision: {
           selected_agent: "Research Agent",
-          routing_reason:
-            "Program discovery matches Research Agent capabilities.",
+          routing_reason: "Program discovery matches Research Agent capabilities.",
         },
       },
       created_at: new Date(Date.now() - 86400000 * 3 + 5000).toISOString(),

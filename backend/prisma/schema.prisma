@@ -1,0 +1,47 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                 String    @id @default(uuid())
+  username           String    @unique
+  password_hash      String
+  phone_number       String    @unique
+  phone_country_code String    @default("+91")
+  phone_verified     Boolean   @default(false)
+  first_name         String
+  last_name          String
+  gender             String?   // male | female | other | prefer_not_to_say
+  email              String?   @unique
+  about_me           String?   @db.Text
+  profession         String?
+  interest           String?   // jobs | startups | research | degree
+  profile_completed  Boolean   @default(false)
+  mfa_enabled        Boolean   @default(false)
+  is_active          Boolean   @default(true)
+  last_login         DateTime?
+  last_active        DateTime?
+  created_at         DateTime  @default(now())
+  updated_at         DateTime  @updatedAt
+
+  sessions           UserSession[]
+}
+
+model UserSession {
+  id             String    @id @default(uuid())
+  user_id        String
+  user           User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  refresh_token  String    @unique @db.VarChar(500)
+  ip_address     String?
+  user_agent     String?
+  is_revoked     Boolean   @default(false)
+  revoked_at     DateTime?
+  expires_at     DateTime
+  created_at     DateTime  @default(now())
+  last_active_at DateTime?
+}

@@ -295,6 +295,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   // ─── Initial Fetch ────────────────────────────────────────────
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchChats();
   }, [fetchChats]);
 

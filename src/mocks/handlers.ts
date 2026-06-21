@@ -21,83 +21,91 @@ for (const [chatId, msgs] of Object.entries(MOCK_MESSAGES)) {
   MESSAGE_STORE[chatId] = [...msgs];
 }
 
+// When VITE_USE_MOCK_AUTH is "false", auth requests bypass MSW and hit
+// the real backend server.  On GitHub Pages (or when the flag is absent)
+// we include mock auth handlers so the demo works standalone.
+const useMockAuth = import.meta.env.VITE_USE_MOCK_AUTH !== "false";
+
+const authHandlers = useMockAuth
+  ? [
+      // ─── Auth ───────────────────────────────────────────────────────
+
+      http.post(`${API}/auth/login`, async ({ request }) => {
+        const body = (await request.json()) as { username?: string; password?: string };
+        if (!body?.username || !body?.password) {
+          return HttpResponse.json({ detail: "Invalid credentials" }, { status: 401 });
+        }
+        await delay(600);
+        return HttpResponse.json(createMockTokenResponse(), { status: 200 });
+      }),
+
+      http.post(`${API}/auth/signup`, async () => {
+        await delay(400);
+        return HttpResponse.json(
+          {
+            user_id: "demo-user-id",
+            username: "demo_user",
+            phone_number: "+6591234567",
+            message: "User created. Please verify your phone number.",
+          },
+          { status: 201 }
+        );
+      }),
+
+      http.post(`${API}/auth/verify-otp`, async () => {
+        await delay(400);
+        return HttpResponse.json(createMockTokenResponse(), { status: 200 });
+      }),
+
+      http.post(`${API}/auth/resend-otp`, async () => {
+        await delay(200);
+        return HttpResponse.json(
+          { message: "OTP resent", phone_number: "+6591234567" },
+          { status: 200 }
+        );
+      }),
+
+      http.post(`${API}/auth/refresh`, async () => {
+        await delay(200);
+        return HttpResponse.json(createMockTokenResponse(), { status: 200 });
+      }),
+
+      http.get(`${API}/auth/me`, async () => {
+        await delay(300);
+        return HttpResponse.json(MOCK_USER, { status: 200 });
+      }),
+
+      http.patch(`${API}/auth/profile`, async ({ request }) => {
+        const body = (await request.json()) as Record<string, unknown>;
+        await delay(400);
+        return HttpResponse.json(
+          { ...MOCK_USER, ...body, profile_completed: true },
+          { status: 200 }
+        );
+      }),
+
+      http.get(`${API}/auth/profile-status`, async () => {
+        await delay(200);
+        return HttpResponse.json(
+          { profile_completed: true, phone_verified: true },
+          { status: 200 }
+        );
+      }),
+
+      http.post(`${API}/auth/logout`, async () => {
+        await delay(200);
+        return HttpResponse.json({ message: "Logged out" }, { status: 200 });
+      }),
+
+      http.post(`${API}/auth/mfa/verify`, async () => {
+        await delay(400);
+        return HttpResponse.json(createMockTokenResponse(), { status: 200 });
+      }),
+    ]
+  : [];
+
 export const handlers = [
-  // ─── Auth ───────────────────────────────────────────────────────
-
-  http.post(`${API}/auth/login`, async ({ request }) => {
-    const body = (await request.json()) as { username?: string; password?: string };
-    if (!body?.username || !body?.password) {
-      return HttpResponse.json(
-        { detail: "Invalid credentials" },
-        { status: 401 }
-      );
-    }
-    await delay(600);
-    return HttpResponse.json(createMockTokenResponse(), { status: 200 });
-  }),
-
-  http.post(`${API}/auth/signup`, async () => {
-    await delay(400);
-    return HttpResponse.json(
-      {
-        user_id: "demo-user-id",
-        username: "demo_user",
-        phone_number: "+6591234567",
-        message: "User created. Please verify your phone number.",
-      },
-      { status: 201 }
-    );
-  }),
-
-  http.post(`${API}/auth/verify-otp`, async () => {
-    await delay(400);
-    return HttpResponse.json(createMockTokenResponse(), { status: 200 });
-  }),
-
-  http.post(`${API}/auth/resend-otp`, async () => {
-    await delay(200);
-    return HttpResponse.json(
-      { message: "OTP resent", phone_number: "+6591234567" },
-      { status: 200 }
-    );
-  }),
-
-  http.post(`${API}/auth/refresh`, async () => {
-    await delay(200);
-    return HttpResponse.json(createMockTokenResponse(), { status: 200 });
-  }),
-
-  http.get(`${API}/auth/me`, async () => {
-    await delay(300);
-    return HttpResponse.json(MOCK_USER, { status: 200 });
-  }),
-
-  http.patch(`${API}/auth/profile`, async ({ request }) => {
-    const body = (await request.json()) as Record<string, unknown>;
-    await delay(400);
-    return HttpResponse.json(
-      { ...MOCK_USER, ...body, profile_completed: true },
-      { status: 200 }
-    );
-  }),
-
-  http.get(`${API}/auth/profile-status`, async () => {
-    await delay(200);
-    return HttpResponse.json(
-      { profile_completed: true, phone_verified: true },
-      { status: 200 }
-    );
-  }),
-
-  http.post(`${API}/auth/logout`, async () => {
-    await delay(200);
-    return HttpResponse.json({ message: "Logged out" }, { status: 200 });
-  }),
-
-  http.post(`${API}/auth/mfa/verify`, async () => {
-    await delay(400);
-    return HttpResponse.json(createMockTokenResponse(), { status: 200 });
-  }),
+  ...authHandlers,
 
   // ─── Chats ──────────────────────────────────────────────────────
 
@@ -161,19 +169,13 @@ export const handlers = [
   http.get(`${API}/api/v1/chats/:chatId/messages`, async ({ params }) => {
     await delay(400);
     const messages = MESSAGE_STORE[params.chatId as string] || [];
-    return HttpResponse.json(
-      { messages, next_cursor: null },
-      { status: 200 }
-    );
+    return HttpResponse.json({ messages, next_cursor: null }, { status: 200 });
   }),
 
   http.post(`${API}/api/v1/chats/:chatId/messages`, async ({ params, request }) => {
     const body = (await request.json()) as { content: string };
     if (!body?.content) {
-      return HttpResponse.json(
-        { detail: "Message content is required" },
-        { status: 400 }
-      );
+      return HttpResponse.json({ detail: "Message content is required" }, { status: 400 });
     }
     await delay(1200);
     const now = new Date().toISOString();
@@ -222,29 +224,26 @@ export const handlers = [
     );
   }),
 
-  http.post(
-    `${API}/api/v1/chats/:chatId/assistant-notice`,
-    async ({ params, request }) => {
-      const body = (await request.json()) as { content: string; metadata?: Record<string, unknown> };
-      await delay(300);
-      const assistantMsg = {
-        id: `msg-notice-${Date.now()}`,
-        chat_id: params.chatId as string,
-        role: "assistant" as const,
-        content: body.content,
-        metadata: body.metadata || null,
-        created_at: new Date().toISOString(),
-      };
-      if (!MESSAGE_STORE[params.chatId as string]) {
-        MESSAGE_STORE[params.chatId as string] = [];
-      }
-      MESSAGE_STORE[params.chatId as string].push(assistantMsg);
-      return HttpResponse.json(
-        { assistant_message: assistantMsg, chat: CHAT_STORE.find((c) => c.id === params.chatId) },
-        { status: 200 }
-      );
+  http.post(`${API}/api/v1/chats/:chatId/assistant-notice`, async ({ params, request }) => {
+    const body = (await request.json()) as { content: string; metadata?: Record<string, unknown> };
+    await delay(300);
+    const assistantMsg = {
+      id: `msg-notice-${Date.now()}`,
+      chat_id: params.chatId as string,
+      role: "assistant" as const,
+      content: body.content,
+      metadata: body.metadata || null,
+      created_at: new Date().toISOString(),
+    };
+    if (!MESSAGE_STORE[params.chatId as string]) {
+      MESSAGE_STORE[params.chatId as string] = [];
     }
-  ),
+    MESSAGE_STORE[params.chatId as string].push(assistantMsg);
+    return HttpResponse.json(
+      { assistant_message: assistantMsg, chat: CHAT_STORE.find((c) => c.id === params.chatId) },
+      { status: 200 }
+    );
+  }),
 
   // ─── Projects ───────────────────────────────────────────────────
 
@@ -341,7 +340,10 @@ export const handlers = [
   http.post(`${API}/api/v1/applications/:id/generate-sop`, async () => {
     await delay(1500);
     return HttpResponse.json(
-      { content: "# Statement of Purpose\n\nThis is a demo SOP generated by the AI assistant.\n\n[Full content would be generated in production...]" },
+      {
+        content:
+          "# Statement of Purpose\n\nThis is a demo SOP generated by the AI assistant.\n\n[Full content would be generated in production...]",
+      },
       { status: 200 }
     );
   }),
@@ -349,7 +351,10 @@ export const handlers = [
   http.post(`${API}/api/v1/applications/:id/generate-cover-letter`, async () => {
     await delay(1500);
     return HttpResponse.json(
-      { content: "# Cover Letter\n\nThis is a demo cover letter generated by the AI assistant.\n\n[Full content would be generated in production...]" },
+      {
+        content:
+          "# Cover Letter\n\nThis is a demo cover letter generated by the AI assistant.\n\n[Full content would be generated in production...]",
+      },
       { status: 200 }
     );
   }),
