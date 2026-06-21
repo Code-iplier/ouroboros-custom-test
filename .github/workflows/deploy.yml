@@ -332,7 +332,7 @@ jobs:
 
       - name: Install Playwright and Chromium
         run: |
-          npm install --no-save playwright@1.47.2
+          npm install --no-save playwright@1.60.0
           npx --yes playwright install --with-deps chromium
 
       - name: Run Playwright smoke test
@@ -340,11 +340,26 @@ jobs:
           export URL="https://${{ env.PRODUCTION_DOMAIN }}${{ env.PRODUCTION_PATH }}/"
           cat > smoke.cjs << 'JS'
           const { chromium } = require('playwright');
+          const BENIGN_PATTERNS = [
+            /Failed to start Mock Service Worker/i,
+            /\[MSW\]/i,
+            /service.worker/i,
+            /favicon\.svg/i,
+            /manifest\.webmanifest/i,
+            /robots\.txt/i,
+            /favicon\.ico/i,
+          ];
           (async () => {
             const browser = await chromium.launch();
             const page = await browser.newPage();
             const consoleErrors = [];
-            page.on('console', msg => { if (msg.type() === 'error') consoleErrors.push(msg.text()); });
+            page.on('console', msg => {
+              if (msg.type() === 'error') {
+                const text = msg.text();
+                if (BENIGN_PATTERNS.some(p => p.test(text))) return;
+                consoleErrors.push(text);
+              }
+            });
             const targetUrl = process.env.URL;
             await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
             try {

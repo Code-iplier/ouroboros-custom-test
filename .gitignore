@@ -27,6 +27,7 @@ lerna-debug.log*
 .env.development
 .env.production
 .env.test
+backend/.env
 
 # IDE
 .vscode/
