@@ -17,7 +17,7 @@ env:
   NODE_VERSION: "24"
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   PRODUCTION_DOMAIN: "code-iplier.github.io"
-  PRODUCTION_PATH: "/Ouroboros-Custom-test"
+  PRODUCTION_PATH: "/ouroboros-custom-test"
 
 permissions:
   contents: read
