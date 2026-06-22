@@ -390,18 +390,24 @@ jobs:
         run: |
           URL="https://${{ env.PRODUCTION_DOMAIN }}${{ env.PRODUCTION_PATH }}/"
           EXPECTED="${{ github.ref_name }}"
-          sleep 15
+          echo "Waiting for deployment to propagate..."
+          sleep 30
           DEPLOYED=""
-          for i in {1..3}; do
+          for i in {1..12}; do
             HTML="$(curl --retry 3 --retry-delay 5 -fsSL "$URL" || true)"
             if [ -n "$HTML" ]; then
+              echo "Attempt $i: HTML fetched (${#HTML} bytes)"
+              echo "$HTML" | grep -o 'name="app-version"[^>]*' || echo "Attempt $i: no app-version metatag found"
               DEPLOYED="$(echo "$HTML" | grep 'name="app-version"' | sed -n 's/.*content="\([^"]*\)".*/\1/p' | head -1 | tr -d "\r\n")"
             fi
             if [ -n "$DEPLOYED" ]; then break; fi
-            sleep 5
+            echo "Attempt $i: retrying in 10s..."
+            sleep 10
           done
           if [ -z "$DEPLOYED" ]; then
             echo "❌ Metatag app-version missing on $URL"
+            echo "--- Raw HTML snippet ---"
+            echo "$HTML" | head -15
             exit 1
           fi
           if [ "$DEPLOYED" != "$EXPECTED" ]; then
